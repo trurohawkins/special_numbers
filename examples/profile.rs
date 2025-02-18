@@ -131,7 +131,7 @@ impl Profile {
 							println!("Wow thats so you! I can really see you have a connection with {}", number);
 
 						},
-							Err(err) => eprintln!("Error sending transaction: {}", err),
+							Err(err) => eprintln!("Error sending special number transaction: {:?}", err),
 					}
 					return true;
 				}
@@ -139,6 +139,27 @@ impl Profile {
 			None => {println!("Who are you to have a connection?");}
 		}
 		false
+	}
+
+	pub fn increase_love(&self) {
+		match &self.lover {
+			Some(lover_keypair) => {
+				let data = vec![2];
+				let increase_instruction =
+					solana_program::instruction::Instruction::new_with_bytes(
+						self.program_id,
+						&data,
+						vec![AccountMeta::new(lover_keypair.pubkey(), true)]
+					);
+				let mut transaction = Transaction::new_with_payer(&[increase_instruction], Some(&self.payer.pubkey()));
+				transaction.sign(&[&self.payer, &lover_keypair], self.client.get_latest_blockhash().unwrap());
+				match self.client.send_and_confirm_transaction(&transaction) {
+					Ok(_) => {}
+					Err(e) => { eprintln!("error sending increase transaction: {:?}", e);}
+				}
+			}
+			None => {}
+		}
 	}
 
 	pub fn is_special_number_taken(&self, number: u64) -> bool {

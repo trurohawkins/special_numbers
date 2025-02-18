@@ -22,13 +22,9 @@ pub fn process_instruction(
 	accounts: &[AccountInfo],
 	instruction_data: &[u8],
 ) -> ProgramResult {
-	msg!("Here we go!");
-	//let number = u64::from_le_bytes(instruction_data);
-	//let lover = Lover::try_from_slice(instruction_data).expect("Failed to deserialize user data");'
 	let instruction = LoverInstruction::unpack(instruction_data)?;
 	match instruction {
 		LoverInstruction::SetSpecialNumber { new_number } => {
-			msg!("\nOh Your special number is {}?\n I LOVE THAT for you.", new_number);
 			return set_special_number(program_id, accounts, new_number);
 		},
     LoverInstruction::SetName { new_name } => {
@@ -58,7 +54,6 @@ impl LoverInstruction {
 		match variant {
 			0 => {
 				//let new_name = String::from_utf8(rest.to_vec()).expect("Invalid UTF-8");	
-				//Ok(Self::SetName { new_name })
 				let mut new_name = [0u8; NAME];
 				let len = rest.len().min(NAME);
 				new_name[..len].copy_from_slice(&rest[..len]);
@@ -99,7 +94,6 @@ fn process_initialize_account(
 	let rent = Rent::get()?;
 	let required_lamports = rent.minimum_balance(account_space);
 
-	// Create the counter account
 	invoke(
 		&system_instruction::create_account(
 			payer_account.key,		// Account paying for the new account
@@ -114,13 +108,7 @@ fn process_initialize_account(
 			system_program.clone(),
 		],
 	)?;
-	/*
-	let mut base_numbers = Vec::new();
-	for i in 0..MAX_SPECIAL {
-		base_numbers.push(0);
-	}
-	*/
-	// Create a new SpecialNumberAccount struct with the initial value
+	// Create a new LoverAccount struct with the initial value
 	let love_data = Lover {
 		name: new_name.clone(),
 		special_numbers: [0, 0, 0, 0, 0],
@@ -129,11 +117,9 @@ fn process_initialize_account(
 	// Get a mutable reference to the lover account's data
 	let mut account_data = &mut love_account.data.borrow_mut()[..];
 
-	// Serialize the SpecialNumberAccount struct into the account's data
+	// Serialize the LoverAccount struct into the account's data
 	love_data.serialize(&mut account_data)?;
 	
-	msg!("Its great to meet you {}!", u8_to_string(love_data.name));
-
 	Ok(())
 }
 
@@ -152,12 +138,12 @@ fn set_special_number(
 		// Mutable borrow the account data
 		let mut data = lover_account.data.borrow_mut();
 		//Deserialize the account data into our Lover Struct
-		//let mut lover_data: Lover = Lover::try_from_slice(&data)?;
 		match Lover::try_from_slice(&data[..]) {
 			Ok(mut lover_data) => {	
+				// check to make sure they don't exceed their maximum number of special numbers
+				// also that they dont already have this special number
 				let mut count = 0;
 				for i in 0..MAX_SPECIAL {
-					msg!("{} == {}?", lover_data.special_numbers[i], new_number);
 					if lover_data.special_numbers[i] != 0 {
 						count += 1;
 						if lover_data.special_numbers[i] == new_number {
@@ -167,19 +153,14 @@ fn set_special_number(
 						break;
 					}
 				}
-				msg!("{}", count);
 				if count <= lover_data.love {
 					lover_data.special_numbers[lover_data.love as usize] = new_number;
 					lover_data.serialize(&mut &mut data[..])?;
-					msg!("Wow, {}! You really do have a special connection with {}, I can FEEEL it!",
-					u8_to_string(lover_data.name), new_number);
 				} else {
-					msg!("not enough love {} > {}", count, lover_data.love);
 					return Err(CustomError::NotEnoughLove.into());
 				}
 			}
 			Err(e) => {
-				//msg!("\nerror occured when pulling lover out of data: {}", e);
 				return Err(e.into());
 			}
 		}
@@ -195,12 +176,10 @@ fn increase_love(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
 	}
 	let mut data = lover_account.data.borrow_mut();
 	//Deserialize the account data into our Lover Struct
-	//let mut lover_data: Lover = Lover::try_from_slice(&data)?;
 	match Lover::try_from_slice(&data[..]) {
 		Ok(mut lover_data) => {
 			if (lover_data.love as usize) < MAX_SPECIAL - 1 {
 				lover_data.love += 1;
-				msg!("your love is now {}", lover_data.love);
 				lover_data.serialize(&mut &mut data[..])?;
 			} else {
 				return Err(CustomError::TooMuchLove.into());
@@ -216,9 +195,26 @@ fn increase_love(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct Lover {
 	pub name: [u8; NAME],
-	//pub special_number: u64
 	pub special_numbers: [u64; MAX_SPECIAL],
 	pub love: u8,
+}
+
+impl Lover {
+	pub fn new() -> Self {
+		Self { name: string_to_u8(""), special_numbers: [0,0,0,0,0], love: 0 }
+	}
+
+	pub fn count(&self) -> u8 {
+		let mut count = 0;
+		for i in 0..MAX_SPECIAL {
+			if self.special_numbers[i] != 0 {
+				count += 1;
+			} else {
+				break;
+			}
+		}
+		count
+	}
 }
 
 pub fn u8_to_string(data: [u8; NAME]) -> String {
