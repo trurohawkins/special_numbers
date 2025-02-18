@@ -27,7 +27,8 @@ impl Profile {
 		// Program ID
 		let program_id = Pubkey::from_str("4eHaDppPZ6rwiNKfhEkQNMVn4wTijit9J2KbPSBi4saa").unwrap();
 		// Connect to the Solana devnet
-		let rpc_url = String::from("http://127.0.0.1:8899");
+		//let rpc_url = String::from("http://127.0.0.1:8899");
+		let rpc_url = "https://api.devnet.solana.com";
 		let client = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
 		// Generate a new keypair for the payer
 	 // Path to the Solana CLI keypair file (default location)
