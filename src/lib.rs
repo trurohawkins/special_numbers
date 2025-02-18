@@ -14,7 +14,7 @@ use solana_program::{
 entrypoint!(process_instruction);
 
 const NAME: usize = 32;
-const MAX_SPECIAL: usize = 5;
+pub const MAX_SPECIAL: usize = 5;
 
 // Function to route instruction to the correct handler
 pub fn process_instruction(
@@ -94,7 +94,6 @@ fn process_initialize_account(
 
 	// Size of our counter account
 	let account_space = NAME + (MAX_SPECIAL * 8) + 1; // String + Vec meta data + max conent + u8 for current max
-	msg!("{}", account_space);
 
 	// Calculate minimum balance for rent exemption
 	let rent = Rent::get()?;
