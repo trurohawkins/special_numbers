@@ -30,21 +30,22 @@ async fn main() {
 	let mut poppy: Profile = Profile::new();
 	let mut current_lover = Lover {
 		name: string_to_u8(""),
-		special_number: 0,
+		special_numbers: [0,0,0,0,0],
+		love: 1,
 	};
 	match poppy.get_chain_account() {
 		Ok(lover) => {
-			if lover.special_number != 0 {
+			if lover.special_numbers[0] != 0 {
 				println!("Welcome back {}! You have a special connection with {}"
-					, u8_to_string(lover.name), lover.special_number);
-					current_lover.special_number = lover.special_number;
+					, u8_to_string(lover.name), lover.special_numbers[0]);
+					current_lover.special_numbers[0] = lover.special_numbers[0];
 			} else {
 				println!("Welcome back {}! You still havent found a connection have you?"
 					, u8_to_string(lover.name));
 			}
 			current_lover.name = lover.name;
 		}
-		Err(_) => {}
+		Err(_) => {println!("couldnt get account");}
 	}
 	/*
 	// Get account information
@@ -67,8 +68,9 @@ async fn main() {
 		current_lover.name = string_to_u8(&input);
 		poppy.set_name(input);
 	}
+	//println!("is 42 taken? {}", poppy.is_special_number_taken(42));
 	loop {
-		if current_lover.special_number == 0 {
+		if current_lover.special_numbers[0] == 0 {
 			println!("what is your special number?\nYou know the one that really gets you going?\nYou can tell me!");
 			//First access the input message and read it
 			let mut input = String::new();
@@ -84,7 +86,7 @@ async fn main() {
 					println!("thats a good number");
 					let new_number = input.parse::<u64>().unwrap(); 
 					if poppy.set_special_number(new_number) {
-						current_lover.special_number = new_number;
+						//current_lover.special_number = new_number;
 					}
 				} else {
 					if letter == b'-' {
@@ -102,6 +104,7 @@ async fn main() {
 fn is_integer(s: &str) -> bool {
     s.parse::<u64>().is_ok()
 }
+	/*
 
 // gotta test
 fn is_special_number_taken(number: u64, client: RpcClient, program_id: Pubkey) -> bool {
@@ -132,7 +135,6 @@ fn is_special_number_taken(number: u64, client: RpcClient, program_id: Pubkey) -
 	}
 	taken
 }
-	/*
 	
 	let _ = get_account_keypair();
 	let mut new_user = false;

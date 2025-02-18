@@ -1,4 +1,4 @@
-use crate::{Lover, string_to_u8};
+use special_numbers::{Lover, string_to_u8, u8_to_string};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSimulateTransactionConfig;
@@ -25,10 +25,10 @@ pub struct Profile {
 impl Profile {
 	pub fn new() -> Self {
 		// Program ID
-		let program_id = Pubkey::from_str("4eHaDppPZ6rwiNKfhEkQNMVn4wTijit9J2KbPSBi4saa").unwrap();
+		let program_id = Pubkey::from_str("2p6Zufn2gGtqmcYLVn8PW9efJLhgupUbM5Add2yCfkQ1").unwrap();
 		// Connect to the Solana devnet
-		//let rpc_url = String::from("http://127.0.0.1:8899");
-		let rpc_url = "https://api.devnet.solana.com";
+		let rpc_url = String::from("http://127.0.0.1:8899");
+		//let rpc_url = "https://api.devnet.solana.com";
 		let client = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
 		// Generate a new keypair for the payer
 	 // Path to the Solana CLI keypair file (default location)
@@ -123,6 +123,34 @@ impl Profile {
 		}
 		true
 	}
+	pub fn is_special_number_taken(&self, number: u64) -> bool {
+		let mut taken = false;	
+		// Fetch all accounts owned by the program
+		match self.client.get_program_accounts(&self.program_id) {
+				Ok(accounts) => {
+						for (pubkey, account) in accounts {
+							println!("Account Pubkey: {}", pubkey);
+							println!("Account Data: {:?}", account.data); // Account data in bytes
+							println!("Account Lamports: {}", account.lamports);
+							println!("---");
+							match Lover::try_from_slice(&account.data) {
+								Ok(lover) => {
+									if lover.special_numbers[0] == number {
+										println!("you cant have that number, its connection is with {}", u8_to_string(lover.name));
+									}
+									taken = true;
+								},
+								Err(e) => eprintln!("Failed to deserialize: {}", e),
+							}
+						}
+
+				}
+				Err(err) => {
+						eprintln!("Failed to fetch program accounts: {}", err);
+				}
+		}
+		taken
+	}
 }
 
 fn get_account_keypair() -> (Keypair, bool) {
@@ -151,5 +179,9 @@ fn get_account_keypair() -> (Keypair, bool) {
   let account_keypair = read_keypair_file(Path::new(&keypair_path)).expect("Failed to load keypair");
    println!("Loaded keypair: {:?}", account_keypair.pubkey());
 	(account_keypair, new_user)
+}
+
+fn main() {
+	todo!();
 }
 

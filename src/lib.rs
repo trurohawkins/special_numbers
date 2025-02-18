@@ -9,12 +9,12 @@ use solana_program::{
 	pubkey::Pubkey,
 	system_instruction,
 	sysvar::{rent::Rent, Sysvar},
-	instruction::AccountMeta,
 };
 // Program entrypoint
 entrypoint!(process_instruction);
 
 const NAME: usize = 32;
+const MAX_SPECIAL: usize = 5;
 
 // Function to route instruction to the correct handler
 pub fn process_instruction(
@@ -29,11 +29,12 @@ pub fn process_instruction(
 	match instruction {
 		LoverInstruction::SetSpecialNumber { new_number } => {
 			msg!("\nOh Your special number is {}?\n I LOVE THAT for you.", new_number);
-			let _ = set_special_number(program_id, accounts, new_number);
+			return set_special_number(program_id, accounts, new_number);
 		},
     LoverInstruction::SetName { new_name } => {
-			let _ = process_initialize_account(program_id, accounts, new_name);
-		}
+			return process_initialize_account(program_id, accounts, new_name);
+		},
+		LoverInstruction::IncreaseLove => increase_love(program_id, accounts)?,
 	}
 	Ok(())
 }
@@ -43,6 +44,7 @@ pub fn process_instruction(
 pub enum LoverInstruction {
 	SetName { new_name: [u8; NAME] },
 	SetSpecialNumber { new_number: u64 },
+	IncreaseLove,
 }
 
 impl LoverInstruction {
@@ -71,7 +73,8 @@ impl LoverInstruction {
 						.map_err(|_| ProgramError::InvalidInstructionData)?,
 				);
 				Ok(Self::SetSpecialNumber { new_number })
-			}
+			},
+			2 => Ok(Self::IncreaseLove),
 			_ => Err(ProgramError::InvalidInstructionData),
 		}
 	}
@@ -90,7 +93,7 @@ fn process_initialize_account(
 	let system_program = next_account_info(accounts_iter)?;
 
 	// Size of our counter account
-	let account_space = 8 + NAME; // u64 + String
+	let account_space = NAME + (MAX_SPECIAL * 8) + 1; // String + Vec meta data + max conent + u8 for current max
 	msg!("{}", account_space);
 
 	// Calculate minimum balance for rent exemption
@@ -112,13 +115,19 @@ fn process_initialize_account(
 			system_program.clone(),
 		],
 	)?;
-	
+	/*
+	let mut base_numbers = Vec::new();
+	for i in 0..MAX_SPECIAL {
+		base_numbers.push(0);
+	}
+	*/
 	// Create a new SpecialNumberAccount struct with the initial value
 	let love_data = Lover {
 		name: new_name.clone(),
-		special_number: 0,
+		special_numbers: [0, 0, 0, 0, 0],
+		love: 0,
 	};
-	// Get a mutable reference to the counter accpount's data
+	// Get a mutable reference to the lover account's data
 	let mut account_data = &mut love_account.data.borrow_mut()[..];
 
 	// Serialize the SpecialNumberAccount struct into the account's data
@@ -131,45 +140,86 @@ fn process_initialize_account(
 
 fn set_special_number(
 	program_id: &Pubkey, 
-	account: &[AccountInfo], 
+	accounts: &[AccountInfo], 
 	new_number: u64
 ) -> ProgramResult {
 		msg!("setting special number");
-		let accounts_iter = &mut account.iter();
+		let accounts_iter = &mut accounts.iter();
 		let lover_account = next_account_info(accounts_iter)?;
-
 		// Verify account ownership
 		if lover_account.owner != program_id {
 			return Err(ProgramError::IncorrectProgramId);
 		}
 		// Mutable borrow the account data
 		let mut data = lover_account.data.borrow_mut();
-		msg!("deserializing account");
-
 		//Deserialize the account data into our Lover Struct
 		//let mut lover_data: Lover = Lover::try_from_slice(&data)?;
 		match Lover::try_from_slice(&data[..]) {
-			Ok(mut lover_data) => {
-				msg!("got account for {}", u8_to_string(lover_data.name));
-
-				lover_data.special_number = new_number;
-
-				lover_data.serialize(&mut &mut data[..])?;
-				msg!("Wow, {}! You really do have a special connection with {}, I can FEEEL it!",
-				u8_to_string(lover_data.name), lover_data.special_number);
-
+			Ok(mut lover_data) => {	
+				let mut count = 0;
+				for i in 0..MAX_SPECIAL {
+					msg!("{} == {}?", lover_data.special_numbers[i], new_number);
+					if lover_data.special_numbers[i] != 0 {
+						count += 1;
+						if lover_data.special_numbers[i] == new_number {
+							return Err(CustomError::AlreadySpecial.into());
+						}
+					} else {
+						break;
+					}
+				}
+				msg!("{}", count);
+				if count <= lover_data.love {
+					lover_data.special_numbers[lover_data.love as usize] = new_number;
+					lover_data.serialize(&mut &mut data[..])?;
+					msg!("Wow, {}! You really do have a special connection with {}, I can FEEEL it!",
+					u8_to_string(lover_data.name), new_number);
+				} else {
+					msg!("not enough love {} > {}", count, lover_data.love);
+					return Err(CustomError::NotEnoughLove.into());
+				}
 			}
 			Err(e) => {
-				msg!("\nerror occured when pulling lover out of data: {}", e);
+				//msg!("\nerror occured when pulling lover out of data: {}", e);
+				return Err(e.into());
 			}
 		}
 		Ok(())
 }
 
+fn increase_love(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+	let accounts_iter = &mut accounts.iter();
+	let lover_account = next_account_info(accounts_iter)?;
+	// Verify account ownership
+	if lover_account.owner != program_id {
+		return Err(ProgramError::IncorrectProgramId);
+	}
+	let mut data = lover_account.data.borrow_mut();
+	//Deserialize the account data into our Lover Struct
+	//let mut lover_data: Lover = Lover::try_from_slice(&data)?;
+	match Lover::try_from_slice(&data[..]) {
+		Ok(mut lover_data) => {
+			if (lover_data.love as usize) < MAX_SPECIAL - 1 {
+				lover_data.love += 1;
+				msg!("your love is now {}", lover_data.love);
+				lover_data.serialize(&mut &mut data[..])?;
+			} else {
+				return Err(CustomError::TooMuchLove.into());
+			}
+		}
+		Err(e) => {
+			return Err(e.into());
+		}
+	}
+	Ok(())
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct Lover {
 	pub name: [u8; NAME],
-	pub special_number: u64
+	//pub special_number: u64
+	pub special_numbers: [u64; MAX_SPECIAL],
+	pub love: u8,
 }
 
 pub fn u8_to_string(data: [u8; NAME]) -> String {
@@ -188,3 +238,15 @@ pub fn string_to_u8(data: &str) -> [u8; NAME] {
 	word
 }
 
+#[derive(Debug, Clone)]
+pub enum CustomError {
+	AlreadySpecial = 0,
+	NotEnoughLove = 1,
+	TooMuchLove = 2,
+}
+
+impl From<CustomError> for ProgramError {
+    fn from(e: CustomError) -> Self {
+        ProgramError::Custom(e as u32)
+    }
+}
