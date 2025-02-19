@@ -62,10 +62,14 @@ async fn main() {
 				break;
 			} else {
 				if is_integer(&answer.0) {
-					println!("thats a good number, excuse me while I share that with the Sage");
 					let new_number = answer.0.parse::<u64>().unwrap(); 
-					if poppy.set_special_number(new_number) {
-						update = true;
+						if new_number != 0 {
+						println!("thats a good number, excuse me while I share that with the Sage");
+						if poppy.set_special_number(new_number) {
+							update = true;
+						}
+					} else {
+						println!("Now that is a holy number, we all have equal love and connection with the great Beginning");
 					}
 				} else {
 					if answer.1 == b'-' {

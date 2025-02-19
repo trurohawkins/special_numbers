@@ -14,6 +14,8 @@ instructions to use client
 	3) make sure rpc_url is set in examples/profiles.rs
 	2) cargo run --example client
 
+entering esc key will terminate the dialogue
+
 future implementations
 	0) thread the output, have it come out slower, to change the pacing
 	1) subscribe to blockchain and receive real time updates
