@@ -1,0 +1,22 @@
+instructions to build and deploy
+	0) cargo build-sbf
+	for devnet 
+		1) solana config set --url https://api.devnet.solana.com
+	for local testing
+		1) solana confis set --url http://127.0.0.1:8899
+		1b) solana-test-validator
+		1c) solana logs
+	2) solana program deploy ./target/deploy/special_numbers.so
+
+instructions to use client
+	0) install solana cli
+	1) get SOL on devnet (the faucet is good) // or use internal testing
+	3) make sure rpc_url is set in examples/profiles.rs
+	2) cargo run --example client
+
+future implementations
+	0) thread the output, have it come out slower, to change the pacing
+	1) subscribe to blockchain and receive real time updates
+	2) add best friend feature, where youare notified if your special number is close to others
+	3) store latest dream on block chain, allowing only your best friends to see the dreams
+	4) thread the blockchain requests, to not slow program too much if chain gets big

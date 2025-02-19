@@ -62,7 +62,7 @@ async fn main() {
 				break;
 			} else {
 				if is_integer(&answer.0) {
-					println!("thats a good number");
+					println!("thats a good number, excuse me while I share that with the Sage");
 					let new_number = answer.0.parse::<u64>().unwrap(); 
 					if poppy.set_special_number(new_number) {
 						update = true;

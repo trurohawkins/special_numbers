@@ -26,8 +26,8 @@ pub struct Profile {
 impl Profile {
 	pub fn new() -> Result<Self, String> {
 		let program_id = Pubkey::from_str("2p6Zufn2gGtqmcYLVn8PW9efJLhgupUbM5Add2yCfkQ1").unwrap();
-		let rpc_url = String::from("http://127.0.0.1:8899");
-		//let rpc_url = "https://api.devnet.solana.com";
+		//let rpc_url = String::from("http://127.0.0.1:8899");
+		let rpc_url = "https://api.devnet.solana.com";
 		let client = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
 
 		// use solana client keypair for payment
@@ -189,7 +189,9 @@ impl Profile {
 		}
 	}
 
-	pub fn update_book(&mut self) { self.book.update(&self.client, &self.program_id); }
+	pub fn update_book(&mut self) { 
+		let _ = self.book.update(&self.client, &self.program_id); 
+	}
 }
 
 /* 
