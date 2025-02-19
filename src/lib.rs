@@ -13,7 +13,7 @@ use solana_program::{
 // Program entrypoint
 entrypoint!(process_instruction);
 
-const NAME: usize = 32;
+pub const NAME: usize = 32;
 pub const MAX_SPECIAL: usize = 5;
 
 // Function to route instruction to the correct handler

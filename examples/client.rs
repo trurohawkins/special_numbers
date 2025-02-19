@@ -1,3 +1,4 @@
+pub mod ledger;
 pub mod profile;
 
 use special_numbers::{string_to_u8, u8_to_string, Lover, MAX_SPECIAL};
@@ -12,6 +13,7 @@ use rand::Rng;
 async fn main() {
 	let mut poppy: Profile = Profile::new().expect("no solana-cli keypair");
 	let mut current_lover = Lover::new();
+	poppy.book.read();
 	println!("Hey who is there?\nMy eyes aren't what they used to be...");
 	let mut input = String::new();
 	stdin().read_line(&mut input).expect("Failed to read");
@@ -25,8 +27,15 @@ async fn main() {
 	}
 	if !poppy.first_run {
 		println!("Welcome back {}!", u8_to_string(current_lover.name));
-		if current_lover.special_numbers[0] != 0 {
-			println!("I see here you have a special connection with {}", current_lover.special_numbers[0]);
+		let count = current_lover.count();
+		if count != 0 {
+			println!("I see here you have a special connection with...");
+			for i in 0..count {
+				println!("{}",current_lover.special_numbers[i as usize]);
+			}
+			if count > 2 {
+				println!("my thats a lot of love my friend");
+			}
 		} else {
 			println!("You still havent found a connection have you?");
 		}

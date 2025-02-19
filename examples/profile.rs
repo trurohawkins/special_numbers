@@ -12,13 +12,15 @@ use solana_sdk::{
 };
 use std::{env, fs, path::Path, 
 	str::FromStr, io::Write, result::Result};
+use crate::ledger::Ledger;
 
 pub struct Profile {
-program_id: Pubkey,
-							client: RpcClient,
-							payer: Keypair,
-							lover: Option<Keypair>,
-							pub first_run: bool,
+	program_id: Pubkey,
+	client: RpcClient,
+	payer: Keypair,
+	lover: Option<Keypair>,
+	pub first_run: bool,
+	pub book: Ledger,
 }
 
 impl Profile {
@@ -27,7 +29,6 @@ impl Profile {
 		let rpc_url = String::from("http://127.0.0.1:8899");
 		//let rpc_url = "https://api.devnet.solana.com";
 		let client = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
-		
 		// use solana client keypir for payment
 		let keypair_path = std::env::var("SOLANA_KEYPAIR_PATH")
 			.unwrap_or_else(|_| "~/.config/solana/id.json".to_string());
@@ -38,7 +39,24 @@ impl Profile {
 						&serde_json::from_str::<Vec<u8>>(&keypair_data).expect("Invalid keypair file"),
 						)
 					.expect("Failed to parse keypair");
-				Ok(Self { program_id, client, payer, lover: None, first_run: false })
+				let mut book = Ledger::new();
+				match client.get_program_accounts(&program_id) {
+					Ok(accounts) => {
+						for (_, account) in accounts {
+							match Lover::try_from_slice(&account.data) {
+								Ok(lover) => {
+									book.add(lover.name, lover.special_numbers);
+								}
+								Err(_) => {}
+							}
+						}
+					}
+					Err(err) => {
+						eprintln!("Failed to fetch program accounts: {}", err);
+						return Err("couldn't get accounts from blockchain".to_string());
+					}
+				}
+				Ok(Self { program_id, client, payer, lover: None, first_run: false, book })
 			}
 			Err(e) => {
 				println!("couldn't read your keypair for the solana cli, is installed?\n
@@ -46,7 +64,6 @@ impl Profile {
 				Err("no solana kaypair found".to_string())
 			}
 		}
-
 	}
 
 	pub fn get_chain_account(&mut self) -> Result<Lover, String> {
@@ -114,26 +131,32 @@ impl Profile {
 	pub fn set_special_number(&self, number: u64) -> bool {
 		match &self.lover {
 			Some(lover_keypair) => {
-				if !self.is_special_number_taken(number) {
-					let mut number_data = vec![1];
-					number_data.extend_from_slice(&number.to_le_bytes());
-					let number_instruction = 
-						solana_program::instruction::Instruction::new_with_bytes(
-								self.program_id,
-								&number_data,
-								vec![AccountMeta::new(lover_keypair.pubkey(), true)]
-								);
-					let mut transaction = 
-						Transaction::new_with_payer(&[number_instruction], Some(&self.payer.pubkey()));
-					transaction.sign(&[&self.payer, &lover_keypair], self.client.get_latest_blockhash().unwrap());
-					match self.client.send_and_confirm_transaction(&transaction) {
-						Ok(_signature) => {
-							println!("Wow thats so you! I can really see you have a connection with {}", number);
+				//if !self.is_special_number_taken(number) {
+				match self.book.check_special_number(number) {
+					None => {
+						let mut number_data = vec![1];
+						number_data.extend_from_slice(&number.to_le_bytes());
+						let number_instruction = 
+							solana_program::instruction::Instruction::new_with_bytes(
+									self.program_id,
+									&number_data,
+									vec![AccountMeta::new(lover_keypair.pubkey(), true)]
+									);
+						let mut transaction = 
+							Transaction::new_with_payer(&[number_instruction], Some(&self.payer.pubkey()));
+						transaction.sign(&[&self.payer, &lover_keypair], self.client.get_latest_blockhash().unwrap());
+						match self.client.send_and_confirm_transaction(&transaction) {
+							Ok(_signature) => {
+								println!("Wow thats so you! I can really see you have a connection with {}", number);
 
-						},
-							Err(err) => eprintln!("Error sending special number transaction: {:?}", err),
+							},
+								Err(err) => eprintln!("Error sending special number transaction: {:?}", err),
+						}
+						return true;
 					}
-					return true;
+					Some(name) => {
+						println!("{} has a much more special strong connection with {}", name, number);
+					}
 				}
 			}
 			None => {println!("Who are you to have a connection?");}
@@ -160,35 +183,6 @@ impl Profile {
 			}
 			None => {}
 		}
-	}
-
-	pub fn is_special_number_taken(&self, number: u64) -> bool {
-		let mut taken = false;	
-		// Fetch all accounts owned by the program
-		match self.client.get_program_accounts(&self.program_id) {
-			Ok(accounts) => {
-				for (_, account) in accounts {
-					match Lover::try_from_slice(&account.data) {
-						Ok(lover) => {
-							for i in 0..MAX_SPECIAL {
-								if lover.special_numbers[i] == number {
-									println!("you cant have that number, its connection is with {}", u8_to_string(lover.name));
-									taken = true;
-								} else if lover.special_numbers[i] == 0 {
-									break;
-								}
-							}
-						},
-							Err(e) => eprintln!("Failed to deserialize: {}", e),
-					}
-				}
-
-			}
-			Err(err) => {
-				eprintln!("Failed to fetch program accounts: {}", err);
-			}
-		}
-		taken
 	}
 }
 
