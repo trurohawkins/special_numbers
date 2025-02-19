@@ -53,7 +53,7 @@ impl LoverInstruction {
 		// match instruction type and parse the remaining bytes based on the variant
 		match variant {
 			0 => {
-				//let new_name = String::from_utf8(rest.to_vec()).expect("Invalid UTF-8");	
+				// padding name with 0s to make sure it fits in fixed size buffer
 				let mut new_name = [0u8; NAME];
 				let len = rest.len().min(NAME);
 				new_name[..len].copy_from_slice(&rest[..len]);
@@ -146,6 +146,7 @@ fn set_special_number(
 				for i in 0..MAX_SPECIAL {
 					if lover_data.special_numbers[i] != 0 {
 						count += 1;
+						// we also don't want repeats!
 						if lover_data.special_numbers[i] == new_number {
 							return Err(CustomError::AlreadySpecial.into());
 						}

@@ -1,24 +1,27 @@
 pub mod ledger;
 pub mod profile;
 
-use special_numbers::{string_to_u8, u8_to_string, Lover, MAX_SPECIAL};
+use special_numbers::{u8_to_string, Lover, MAX_SPECIAL};
 use crate::profile::Profile;
-use std::{
-		io::stdin,
-		thread, sync::{Arc, Mutex, mpsc},
-};
+use std::{io::stdin, thread, time::Duration};
 use rand::Rng;
 
 #[tokio::main]
 async fn main() {
+	// connect to online blockchain with our profile struct
 	let mut poppy: Profile = Profile::new().expect("no solana-cli keypair");
-	let mut current_lover = Lover::new();
+
+	// little graphic to start off program
 	poppy.book.read();
+	
 	println!("Hey who is there?\nMy eyes aren't what they used to be...");
 	let mut input = String::new();
 	stdin().read_line(&mut input).expect("Failed to read");
 	input.pop();
+	
+	// send name to online blokchain and store in local struct for easy use
 	poppy.set_name(input);
+	let mut current_lover = Lover::new();
 	match poppy.get_chain_account() {
 		Ok(lover) => {
 			current_lover = lover;
@@ -26,7 +29,7 @@ async fn main() {
 		Err(e) => {println!("couldnt get account: {:?}", e);}
 	}
 	if !poppy.first_run {
-		println!("Welcome back {}!", u8_to_string(current_lover.name));
+		println!("ah! {}, welcome back!", u8_to_string(current_lover.name));
 		let count = current_lover.count();
 		if count != 0 {
 			println!("I see here you have a special connection with...");
@@ -53,6 +56,7 @@ async fn main() {
 				println!("there must be another number you feel a connection with right???");
 			}
 			let answer = ask_for_input();
+			// pressing escape exits
 			if answer.1 == 27 {
 				println!("god bye I love you");
 				break;
@@ -72,6 +76,7 @@ async fn main() {
 				}
 			}
 		} else if (cur_nums as usize) < MAX_SPECIAL {
+			// typing in dreams allows you to increase the number of special numbers your account has
 			println!("Will you tell me a dream you had?");
 			let answer = ask_for_input();
 			if answer.1 == 27 {
@@ -104,7 +109,11 @@ async fn main() {
 			}
 		}
 	}
+	thread::sleep(Duration::from_millis(300));
+	poppy.update_book();
+	poppy.book.read();
 }
+
 fn is_integer(s: &str) -> bool {
 	s.parse::<u64>().is_ok()
 }
